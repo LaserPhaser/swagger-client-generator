@@ -1,0 +1,33 @@
+from typing import List
+import uuid
+from faker import Faker
+import random
+import json
+fake = Faker()
+
+
+class CustomJsonEncoder(json.JSONEncoder):
+    def default(self, o):
+        return o.__dict__
+
+class JsonDumper(object):
+    def json(self):
+        return json.dumps(self, cls=CustomJsonEncoder)
+
+
+{% for data_structure in datastructs %}
+class {{ data_structure.name }}(Model):
+    def __init__(self):
+    {% for x in data_structure.attributes %}    self.{{ x.name }} = {{ x.type }}
+    {% endfor %}
+{% endfor %}
+
+{% for var in variables %}
+
+class {{ var.name }}(Model):
+    def __init__(self,):
+        self.{{ var.name }} = {{ var.type }}
+
+
+{% endfor %}
+

@@ -1,0 +1,4 @@
+# HANLDERS:
+[ {% for h in handlers %}
+Handler ('{{ h.name }}', {% for m in h.methods %} '{{ m.name }}', {{ m.parameters }}().get_randomize_instance().json(), '{{ m.parameters }}'), {% endfor %} {% endfor %}],
+

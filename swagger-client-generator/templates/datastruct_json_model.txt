@@ -1,0 +1,16 @@
+
+
+
+{% for data_structure in datastructs %}
+class {{ data_structure.name }}(Model):
+    {% for x in data_structure.attributes %}self.{{ x.name }} = {{ x.random_value }}
+    {% endfor %}
+
+{% endfor %}
+
+{% for var in variables %}
+
+class {{ var.name }}(Model):
+    self.{{ var.name }} = {{ var.random_value }}
+{% endfor %}
+

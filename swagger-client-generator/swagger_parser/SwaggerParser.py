@@ -146,6 +146,13 @@ class DataStructures:
         for definition, definition_value in json_object:
             self.prepare_data_structures(definition, definition_value)
 
+        for xclass in self.classes:
+            self.unroll_subclass(xclass)
+
+    def unroll_subclass(self, xclass):
+        for sub_class in xclass.sub_classes:
+            self.classes.append(sub_class)
+
     def prepare_data_structures(self, name, params):
         name = name
         root = None
@@ -186,16 +193,17 @@ class DataStructures:
 
     def check_value(self, name, value, node, extend='{}'):
         if ('type' in value and value['type'] in self.value_matcher) or '$ref' in value:
-
             node.attributes.append(Variable(name, extend.format(self.match_value(value))))
         elif 'type' in value and 'additionalProperties' in value and value['type'] == 'object':
             value = value['additionalProperties']
             self.check_value(name, value, node, extend)
         elif 'type' in value and value['type'] == 'object':
+            # TODO subclass can be not only with properties - looks like not good json schema.
+            extend = f'EmbeddedField({name})'
             sub_class = Class(name)
             node.sub_classes.append(sub_class)
             self.unroll_nested_structures(value['properties'], sub_class)
-
+            node.attributes.append(Variable(name, extend))
         elif 'type' in value and value['type'] == 'array':
             extend = 'ListField({})'
             value = value['items']
@@ -205,4 +213,4 @@ class DataStructures:
         if 'type' in data and data['type'] in self.value_matcher:
             return self.value_matcher[data['type']]
         if '$ref' in data:
-            return data['$ref'].replace('#/definitions/', '')
+            return data['$ref'].replace('#/definitions/', 'EmbeddedField(') + ')'

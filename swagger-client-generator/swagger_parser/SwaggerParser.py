@@ -55,8 +55,6 @@ class Method:
             self.parse_parameters(data.pop('parameters'))
         if 'responses' in data:
             self.parse_responses(data.pop('responses'))
-            # for x, y in data.items():
-            #     print('X_X_X', x, y)
 
     def parse_parameters(self, parameters):
         for parameter in parameters:
@@ -65,9 +63,17 @@ class Method:
                 if place == 'body':
                     self.body_parameters.append(parameter['schema']['$ref'].replace('#/definitions/', ''))
                 if place == 'query':
-                    self.query_parameters.append(parameter['schema']['$ref'].replace('#/definitions/', ''))
+                    self.path_parameters.append(self.parse_qp_parameters(parameter))
                 if place == 'path':
-                    self.path_parameters.append(parameter['schema']['$ref'].replace('#/definitions/', ''))
+                    self.path_parameters.append(self.parse_qp_parameters(parameter))
+
+    def parse_qp_parameters(self, parameter):
+        parameter_obj = Parameter()
+        parameter_obj.name = parameter['name']
+        parameter_obj.type = parameter['type']
+        if 'rquired' in parameter:
+            parameter_obj.required = parameter['required']
+        return parameter_obj
 
     def parse_responses(self, responses):
         pass

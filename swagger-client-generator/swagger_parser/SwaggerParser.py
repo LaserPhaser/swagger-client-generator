@@ -40,6 +40,9 @@ class Method:
         self.name = name
         self.data = data
         self.body_parameters = []
+        self.query_parameters = []
+        self.path_parameters = []
+
         self.parse_data(data)
 
     def parse_data(self, data):
@@ -50,7 +53,6 @@ class Method:
             self.summary = data.pop('summary')
         if 'parameters' in data:
             self.parse_parameters(data.pop('parameters'))
-
         if 'responses' in data:
             self.parse_responses(data.pop('responses'))
             # for x, y in data.items():
@@ -58,15 +60,14 @@ class Method:
 
     def parse_parameters(self, parameters):
         for parameter in parameters:
-            print(parameter)
             if 'in' in parameter:
                 place = parameter['in']
                 if place == 'body':
                     self.body_parameters.append(parameter['schema']['$ref'].replace('#/definitions/', ''))
                 if place == 'query':
-                    print(parameter)
+                    self.query_parameters.append(parameter['schema']['$ref'].replace('#/definitions/', ''))
                 if place == 'path':
-                    print(parameter)
+                    self.path_parameters.append(parameter['schema']['$ref'].replace('#/definitions/', ''))
 
     def parse_responses(self, responses):
         pass
@@ -113,9 +114,11 @@ class SwaggerParser:
 
         response = get(self.swagger, verify=False)
         # TODO data structs can be not only in definitions also in requests params
-        ds = DataStructures(response.json()['definitions'].items())
+
         for path, path_value in response.json()['paths'].items():
             self.handlers.append(Handler(path, path_value))
+
+        ds = DataStructures(response.json()['definitions'].items())
         self.data_structures = ds.classes
         # TODO add unroll for nested datastructs  
 
@@ -211,6 +214,9 @@ class DataStructures:
 
     def match_value(self, data):
         if 'type' in data and data['type'] in self.value_matcher:
+            if data['type'] == 'number':
+                if 'format' in data and data['format'] == 'float':
+                    return 'FloatField()'
             return self.value_matcher[data['type']]
         if '$ref' in data:
             return data['$ref'].replace('#/definitions/', 'EmbeddedField(') + ')'

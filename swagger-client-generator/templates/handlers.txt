@@ -1,0 +1,12 @@
+
+{% for data_structure in datastructs %}
+class {{ data_structure.name }}(Model):
+    {% for x in data_structure.attributes %}{{ x.name }} = {{ x.type }}
+    {% endfor %}
+{% endfor %}
+
+{% for var in variables %}
+class {{ var.name }}(Model):
+    {{ var.name }} = {{ var.type }}
+{% endfor %}
+

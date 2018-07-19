@@ -12,12 +12,19 @@ class Model:
 
 
 class Parameter:
-    def __init__(self):
-        self.name = ''
+    def __init__(self, name, type):
+        self.name = name
         self._in = ''
         self.required = True
         self.description = ''
-        self.type = ''
+        self.value_matcher = {'string': 'StringField()',
+                              'number': 'IntField()',
+                              'integer': 'IntField()',
+                              'boolean': 'BoolField()',
+                              'array': 'LIST'
+                              }
+        self.type = type
+        self.real_type = self.value_matcher[type]
         self.patters = ''
         self.schema = ''
 
@@ -35,18 +42,17 @@ class Method:
         self.operationId = ''
         self.consumes = ''
         self.produces = ''
-        self.parameters = []
+        self.parameters = []  # Maybe we don't need it
         self.responses = []
         self.name = name
         self.data = data
         self.body_parameters = []
+        self.body_parameters_exists = []
         self.query_parameters = []
         self.path_parameters = []
-
         self.parse_data(data)
 
     def parse_data(self, data):
-        # print(data)
         if 'description' in data:
             self.description = data.pop('description')
         if 'summary' in data:
@@ -60,24 +66,41 @@ class Method:
         for parameter in parameters:
             if 'in' in parameter:
                 place = parameter['in']
+
                 if place == 'body':
-                    self.body_parameters.append(parameter['schema']['$ref'].replace('#/definitions/', ''))
+
+                    if parameter['schema'] != '' and '$ref' in parameter['schema']:
+                        self.body_parameters_exists.append(parameter['schema']['$ref'].replace('#/definitions/', ''))
+                    if parameter['schema'] != '' and '$ref' not in parameter['schema']:
+                        self.body_parameters.append(
+                            Definitions([('{CLASS_REQUEST_NAME}', parameter['schema'])]).definitions)
                 if place == 'query':
-                    self.path_parameters.append(self.parse_qp_parameters(parameter))
+                    self.query_parameters.append(self.parse_qp_parameters(parameter))
                 if place == 'path':
                     self.path_parameters.append(self.parse_qp_parameters(parameter))
 
+    def generate_datastructs(self, ds, vs):
+        template_env = Environment(
+            loader=FileSystemLoader('./swagger-client-generator/templates/'))
+        header_template = template_env.get_template('datastruct.txt')
+        ds = header_template.render(datastructs=ds, variables=vs)
+        # TODO Add file writer for datastructures:
+        print(ds)
+
     def parse_qp_parameters(self, parameter):
-        parameter_obj = Parameter()
-        parameter_obj.name = parameter['name']
-        parameter_obj.type = parameter['type']
+        parameter_obj = Parameter(parameter['name'], parameter['type'])
         if 'rquired' in parameter:
             parameter_obj.required = parameter['required']
         return parameter_obj
 
     def parse_responses(self, responses):
-        pass
-        # TODO add auto response checkers
+        for response_code in responses:
+
+            if 'schema' in responses[response_code]:
+                print('')
+                self.generate_datastructs(
+                    Definitions([('{CLASS_RESPONSE_NAME}', responses[response_code]['schema'])]).definitions,
+                    Definitions([('{CLASS_RESPONSE_NAME}', responses[response_code]['schema'])]).variables)
 
 
 class Handler:
@@ -89,11 +112,11 @@ class Handler:
         return [Method(name, data) for name, data in parameters.items()]
 
 
-class Class:
+class Definition:
     def __init__(self, name: str):
         self.name = name
         self.attributes = list()  # list of Variables
-        self.sub_classes = []
+        self.sub_definitions = []
 
 
 class Variable:
@@ -123,12 +146,24 @@ class SwaggerParser:
 
         for path, path_value in response.json()['paths'].items():
             self.handlers.append(Handler(path, path_value))
+        for handler in self.handlers:
+            print(handler.url)
+            for method in handler.methods:
+                print("method:", method.name)
 
-        ds = DataStructures(response.json()['definitions'].items())
-        self.data_structures = ds.classes
-        # TODO add unroll for nested datastructs  
+                for p in method.path_parameters:
+                    print('pp:', p.name, p.type, p.schema)
+                for p in method.query_parameters:
+                    print('qp:', p.name, p.type, p.real_type)
+                for p in method.body_parameters:
+                    print('bp:', p)
+                print('\n', '------', '\n')
+            print('\n', '===============', '\n')
+        ds = Definitions(response.json()['definitions'].items())
+        self.data_structures = ds.definitions
+        # # TODO add unroll for nested datastructs
 
-        self.variables = ds.variables
+        # self.variables = ds.variables
 
     def generate_datastructs(self):
         template_env = Environment(
@@ -141,35 +176,34 @@ class SwaggerParser:
         # pass
 
 
-class DataStructures:
+class Definitions:
     def __init__(self, json_object):
-
         self.json = json_object
         self.value_matcher = {'string': 'StringField()',
                               'number': 'IntField()',
                               'integer': 'IntField()',
                               'boolean': 'BoolField()',
                               }
-        self.classes = []
+        self.definitions = []
         self.variables = []
         for definition, definition_value in json_object:
             self.prepare_data_structures(definition, definition_value)
 
-        for xclass in self.classes:
+        for xclass in self.definitions:
             self.unroll_subclass(xclass)
 
     def unroll_subclass(self, xclass):
-        for sub_class in xclass.sub_classes:
-            self.classes.append(sub_class)
+        for sub_definition in xclass.sub_definitions:
+            self.definitions.append(sub_definition)
 
     def prepare_data_structures(self, name, params):
         name = name
         root = None
         if 'properties' in params:
-            type = params.pop('type')
+            type = params.pop('type', None)
             if type == 'object':
-                root = Class(name)
-                self.classes.append(root)
+                root = Definition(name)
+                self.definitions.append(root)
             else:
                 pass
             properties = params['properties']
@@ -188,7 +222,6 @@ class DataStructures:
     def check_value_var(self, name, value, node, extend='{}'):
         if ('type' in value and value['type'] in self.value_matcher) or '$ref' in value:
             node.type = extend.format(self.match_value(value))
-            node.update_randomize_value(node.type)
 
         elif 'type' in value and 'additionalProperties' in value and value['type'] == 'object':
             value = value['additionalProperties']
@@ -202,17 +235,21 @@ class DataStructures:
 
     def check_value(self, name, value, node, extend='{}'):
         if ('type' in value and value['type'] in self.value_matcher) or '$ref' in value:
-            node.attributes.append(Variable(name, extend.format(self.match_value(value))))
+            if node:
+                node.attributes.append(Variable(name, extend.format(self.match_value(value))))
         elif 'type' in value and 'additionalProperties' in value and value['type'] == 'object':
             value = value['additionalProperties']
             self.check_value(name, value, node, extend)
         elif 'type' in value and value['type'] == 'object':
             # TODO subclass can be not only with properties - looks like not good json schema.
             extend = f'EmbeddedField({name})'
-            sub_class = Class(name)
-            node.sub_classes.append(sub_class)
-            self.unroll_nested_structures(value['properties'], sub_class)
-            node.attributes.append(Variable(name, extend))
+            sub_class = Definition(name)
+            if node:
+                node.sub_definitions.append(sub_class)
+            if 'properties' in value:
+                self.unroll_nested_structures(value['properties'], sub_class)
+            if node:
+                node.attributes.append(Variable(name, extend))
         elif 'type' in value and value['type'] == 'array':
             extend = 'ListField({})'
             value = value['items']

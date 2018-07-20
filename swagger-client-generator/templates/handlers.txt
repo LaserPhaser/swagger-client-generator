@@ -1,12 +1,15 @@
 
-{% for data_structure in datastructs %}
-class {{ data_structure.name }}(Model):
-    {% for x in data_structure.attributes %}{{ x.name }} = {{ x.type }}
-    {% endfor %}
-{% endfor %}
+{% for handler in handlers %}
+    {% for method in handler.methods %}
 
-{% for var in variables %}
-class {{ var.name }}(Model):
-    {{ var.name }} = {{ var.type }}
-{% endfor %}
+def {{ method.name }}_{{ handler.name }}(Model):
+    response = requests.{{ method.name }}({{ handler.url}})
+    {% for p in method.path_parameters %}
+    {{ p.name }} = {{p.real_type }} {% endfor %}
 
+
+    {% for pp in method.query_parameters %}
+    {{ pp.name }}  = {{ pp.real_type }} {% endfor %}
+
+{% endfor %}
+{% endfor %}

@@ -37,7 +37,8 @@ class Response:
 
 
 class Method:
-    def __init__(self, name, data):
+    def __init__(self, name, data, handler_name):
+        self.handler_name = handler_name
         self.description = ''
         self.operationId = ''
         self.consumes = ''
@@ -51,6 +52,13 @@ class Method:
         self.query_parameters = []
         self.path_parameters = []
         self.parse_data(data)
+        self.request_model = None
+
+    #
+    # def prepare_request_model(self, query_params=None, path_params=None, body_params=None):
+    #     for parameter in query_params:
+    #
+    #
 
     def parse_data(self, data):
         if 'description' in data:
@@ -78,7 +86,6 @@ class Method:
                 if place == 'path':
                     self.path_parameters.append(self.parse_qp_parameters(parameter))
 
-
     def parse_qp_parameters(self, parameter):
         parameter_obj = Parameter(parameter['name'], parameter['type'])
         if 'rquired' in parameter:
@@ -97,11 +104,11 @@ class Method:
 class Handler:
     def __init__(self, url: str, parameters):
         self.url = url
-        self.name = url.replace('/','_').replace('{','').replace('}','')
+        self.name = url.replace('/', '_').replace('{', '').replace('}', '')
         self.methods = self._get_methods(parameters)
 
     def _get_methods(self, parameters):
-        return [Method(name, data) for name, data in parameters.items()]
+        return [Method(name, data, self.name) for name, data in parameters.items()]
 
 
 class Definition:
@@ -153,14 +160,14 @@ class SwaggerParser:
         print(handlers)
         # pass
 
-        # template_env = Environment(
-        #     loader=FileSystemLoader('./swagger-client-generator/templates/'))
-        # header_template = template_env.get_template('datastruct.txt')
-        # # print(self.data_structures)
-        # ds = header_template.render(datastructs=self.data_structures, variables=self.variables)
-        # # TODO Add file writer for datastructures:
-        # print(ds)
-        # pass
+        template_env = Environment(
+            loader=FileSystemLoader('./swagger-client-generator/templates/'))
+        header_template = template_env.get_template('datastruct.txt')
+        # print(self.data_structures)
+        ds = header_template.render(datastructs=self.data_structures, variables=self.variables)
+        # TODO Add file writer for datastructures:
+        print(ds)
+        pass
 
 
 class DefinitionsParser:

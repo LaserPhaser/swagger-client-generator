@@ -1,0 +1,31 @@
+import requests
+from jsonmodels.fields import StringField, IntField, ListField, EmbeddedField, FloatField, BoolField
+from jsonmodles import Model
+
+
+def _check_status_code(actual_code, expected_code):
+    assert actual_code == expected_code, f'Returned status code:{actual_code}, is not equal to expected status code:{expected_code}'
+
+
+{% for handler in handlers %} {% for method in handler.methods %}
+def {{ method.name }}_{{ handler.name }}( {% if method.request_model %} request: {{method.request_model.name}} , {% endif %} status_code: int = 200  ) {% if method.response_model %} -> {{method.response_model.name}}{% endif %}:
+    """
+    {{ method.description }}
+    """
+    response = requests.{{ method.name }}('{{ handler.url}}')
+    _check_status_code(response.status_code, status_code)
+    {% if method.response_model %}
+    return method.response_model.name(**response.json())
+    {% else %}
+    return response
+    {% endif %}
+
+{#    {% for pp in method.path_parameters %} {{ pp.name }} = {{ pp.real_type }} # {{ pp.description }}#}
+{#    {% endfor %}#}
+{#    {% for qp in method.query_parameters %} {{ qp.name }}  = {{ qp.real_type }} # {{ qp.description }}#}
+{#    {% endfor %}#}
+{#    {% for bp in method.body_parameters_defined %} body  = {{ bp }}()#}
+{#    {% endfor %}#}
+
+{% endfor %}
+{% endfor %}

@@ -1,0 +1,31 @@
+language: python
+python:
+  - 3.3
+  - 3.4
+  - 3.5
+  - 3.6
+
+env:
+  global:
+    - CC_TEST_REPORTER_ID=7d0163d9ad55041099a305ce93f4034ecdc85518120f62a4e84244668c1b248b
+
+install:
+  - pip install codecov
+  - pip install pycodestyle
+
+before_script:  # code coverage tool
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
+
+script:
+  - pycodestyle --max-line-length=120 swagger-client-generator
+  - pycodestyle --max-line-length=120 tests
+  - coverage run --source .  -m py.test tests
+  - coverage report -m
+
+after_script:
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
+
+after_success:
+  - codecov

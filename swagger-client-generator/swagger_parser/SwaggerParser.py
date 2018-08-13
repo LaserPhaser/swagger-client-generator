@@ -17,6 +17,7 @@ class Parameter:
         self._in = ''
         self.required = True
         self.description = ''
+        # TODO Value matcher must be configurable for different languages
         self.value_matcher = {'string': 'StringField()',
                               'number': 'IntField()',
                               'integer': 'IntField()',
@@ -104,7 +105,9 @@ class Method:
 class Handler:
     def __init__(self, url: str, parameters):
         self.url = url
-        self.name = url.replace('/', '_').replace('{', '').replace('}', '')
+        self.name = url.rstrip('/').lstrip('/').replace('/', '_').replace('{', '').replace('}', '').replace('-',
+                                                                                                            '_').replace(
+            '.', '_').lower()
         self.methods = self._get_methods(parameters)
 
     def _get_methods(self, parameters):
@@ -119,6 +122,7 @@ class Definition:
 
 
 class Variable:
+    # TODO merge with definition
     def __init__(self, name: str, type: str):
         self.name = name
         self.type = type
@@ -154,7 +158,7 @@ class SwaggerParser:
     def generate_datastructs(self):
         template_env = Environment(
             loader=FileSystemLoader('./swagger-client-generator/templates/'))
-        header_template = template_env.get_template('handlers.txt')
+        header_template = template_env.get_template('handlers.jinja2')
         handlers = header_template.render(handlers=self.handlers)
         # TODO Add file writer for datastructures:
         print(handlers)
@@ -162,7 +166,7 @@ class SwaggerParser:
 
         template_env = Environment(
             loader=FileSystemLoader('./swagger-client-generator/templates/'))
-        header_template = template_env.get_template('datastruct.txt')
+        header_template = template_env.get_template('datastruct.jinja2')
         # print(self.data_structures)
         ds = header_template.render(datastructs=self.data_structures, variables=self.variables)
         # TODO Add file writer for datastructures:
@@ -179,17 +183,25 @@ class DefinitionsParser:
                               'boolean': 'BoolField()',
                               'float': 'FloatField()'
                               }
+        self.value_matcher_python = {'string': 'str',
+                                     'number': 'int',
+                                     'integer': 'int',
+                                     'boolean': 'bool',
+                                     'float': 'float'
+                                     }
         self.definitions = []
         self.variables = []
         for definition, definition_value in json_object:
             self.prepare_data_structures(definition, definition_value)
 
         for xclass in self.definitions:
-            self.unroll_subclass(xclass)
+            self.unroll_subdefinitions(xclass)
 
-    def unroll_subclass(self, xclass):
+    def unroll_subdefinitions(self, xclass):
+        definitions = []
         for sub_definition in xclass.sub_definitions:
-            self.definitions.append(sub_definition)
+            definitions.insert(0, sub_definition)
+        self.definitions = definitions + self.definitions
 
     def prepare_data_structures(self, name, params):
         name = name
@@ -198,7 +210,7 @@ class DefinitionsParser:
             type = params.pop('type', None)
             if type == 'object':
                 root = Definition(name)
-                self.definitions.append(root)
+                self.definitions.insert(0, root)
             else:
                 pass
             properties = params['properties']
@@ -216,28 +228,37 @@ class DefinitionsParser:
 
     def check_value(self, name, value, node, extend='{}'):
         if self.value_match(value) or '$ref' in value:
-            node.attributes.append(Variable(name, extend.format(self.match_value(value))))
+
+            node.attributes.append(Variable(name, extend.format(self.match_value(extend, value))))
         elif 'type' in value and value['type'] == 'object':
 
             # TODO subclass can be not only with properties - looks like not good json schema.
             extend = f'EmbeddedField({name})'
             nested_definition = Definition(name)
-            node.sub_definitions.append(nested_definition)
+            node.sub_definitions.insert(0, nested_definition)
 
             if 'properties' in value:
                 self.unroll_nested_structures(value['properties'], nested_definition)
 
             node.attributes.append(Variable(name, extend))
-
         elif 'type' in value and value['type'] == 'array':
             extend = 'ListField({})'
             value = value['items']
             self.check_value(name, value, node, extend)
 
-    def match_value(self, data):
+    def match_value(self, extend, data):
         if self.value_match(data):
             if 'format' in data and data['format'] == 'float':
-                return self.value_matcher[data['format']]
-            return self.value_matcher[data['type']]
+                if 'ListField' in extend:
+                    return self.value_matcher_python[data['format']]
+                else:
+                    return self.value_matcher[data['format']]
+            if 'ListField' in extend:
+                return self.value_matcher_python[data['type']]
+            else:
+                return self.value_matcher[data['type']]
         if '$ref' in data:
+            # if 'ListField' in extend:
+            #     return data['$ref'].replace('#/definitions/', '')
+            # else:
             return data['$ref'].replace('#/definitions/', 'EmbeddedField(') + ')'

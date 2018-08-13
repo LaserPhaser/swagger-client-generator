@@ -10,7 +10,7 @@ Tool for genering python client library with basic structure based on swagger.
 
 
 .. |Build Status| image:: https://travis-ci.org/ArseniyAntonov/swagger-client-generator.svg?branch=master
-    :target: https://travis-ci.org/ArseniyAntonov/python-algorithms
+    :target: https://travis-ci.org/ArseniyAntonov/swagger-client-generator
 .. |Coverage Status| image:: https://codecov.io/gh/ArseniyAntonov/swagger-client-generator/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/ArseniyAntonov/swagger-client-generator
 .. |Maintainability| image:: https://api.codeclimate.com/v1/badges/2583876b36efd51ae06a/maintainability

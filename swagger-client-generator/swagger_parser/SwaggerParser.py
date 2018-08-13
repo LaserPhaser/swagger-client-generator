@@ -105,9 +105,13 @@ class Method:
 class Handler:
     def __init__(self, url: str, parameters):
         self.url = url
-        self.name = url.rstrip('/').lstrip('/').replace('/', '_').replace('{', '').replace('}', '').replace('-',
-                                                                                                            '_').replace(
-            '.', '_').lower()
+        self.name = url.rstrip('/') \
+            .lstrip('/') \
+            .replace('/', '_') \
+            .replace('{', '') \
+            .replace('}', '') \
+            .replace('-', '_') \
+            .replace('.', '_').lower()
         self.methods = self._get_methods(parameters)
 
     def _get_methods(self, parameters):

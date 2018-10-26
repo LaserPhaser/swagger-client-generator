@@ -185,13 +185,15 @@ class DefinitionsParser:
                               'number': 'IntField()',
                               'integer': 'IntField()',
                               'boolean': 'BoolField()',
-                              'float': 'FloatField()'
+                              'float': 'FloatField()',
+                              'double': 'FloatField()'
                               }
         self.value_matcher_python = {'string': 'str',
                                      'number': 'int',
                                      'integer': 'int',
                                      'boolean': 'bool',
-                                     'float': 'float'
+                                     'float': 'float',
+                                     'double': 'double'
                                      }
         self.definitions = []
         self.variables = []
@@ -252,7 +254,7 @@ class DefinitionsParser:
 
     def match_value(self, extend, data):
         if self.value_match(data):
-            if 'format' in data and data['format'] == 'float':
+            if 'format' in data and (data['format'] == 'float' or data['format'] == 'double'):
                 if 'ListField' in extend:
                     return self.value_matcher_python[data['format']]
                 else:

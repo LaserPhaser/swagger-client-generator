@@ -27,7 +27,7 @@ def main():
         ],
         packages=find_packages(),
 
-        install_requires=['Jinja2==2.9.6',
+        install_requires=['Jinja2==2.11.3',
                           ]
     )
 
